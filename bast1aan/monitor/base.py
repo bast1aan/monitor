@@ -1,7 +1,7 @@
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Tuple, Iterator
 
 
 @dataclass
@@ -48,6 +48,14 @@ class ExecutorCommand(Command):
 
     def __str__(self) -> str:
         return self.command
+
+class CommandSet:
+    commands: Tuple[Command, ...]
+    def __init__(self, *commands: Command):
+        self.commands = commands
+    def __call__(self) -> Iterator[CommandResult]:
+        for command in self.commands:
+            yield command()
 
 IPV4: Literal[4] = 4
 IPV6: Literal[6] = 6
