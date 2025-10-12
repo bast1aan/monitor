@@ -15,7 +15,7 @@ def test_ping_failure():
     assert bool(result) is False
     msg = str(result)
     assert 'fliepsflops: Name or service not known' in msg
-    assert str(ping_command) == 'ping -c 1 fliepsflops'
+    assert str(result.command) == 'ping -c 1 fliepsflops'
 
 def test_ping_ipv4_success():
     ping_command = PingCommand('localhost', only=IPV4)
@@ -51,8 +51,10 @@ def test_commandset():
     assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_set[1])
 
     assert 'flupflops: Name or service not known' in str(result_set[2])
+    assert 'ping -c 1 flupflops' == str(result_set[2].command)
 
     assert '127.0.0.1: Address family for hostname not supported' in str(result_set[3])
+    assert 'ping -c 1 -6 127.0.0.1' == str(result_set[3].command)
 
     assert '64 bytes from 127.0.0.1: icmp_seq=1' in str(result_set[4])
     assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_set[4])

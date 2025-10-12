@@ -1,3 +1,4 @@
+from __future__ import annotations
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from typing import Literal, Tuple, Iterator
 class CommandResult:
     ok: bool
     msg: str
+    command: Command
 
     @property
     def error(self) -> bool:
@@ -20,12 +22,12 @@ class CommandResult:
         return self.msg
 
     @classmethod
-    def Ok(cls, msg: str) -> "CommandResult":
-        return cls(True, msg)
+    def Ok(cls, msg: str, command: Command) -> "CommandResult":
+        return cls(True, msg, command)
 
     @classmethod
-    def Error(cls, msg: str) -> "CommandResult":
-        return cls(False, msg)
+    def Error(cls, msg: str, command: Command) -> "CommandResult":
+        return cls(False, msg, command)
 
 
 class Command(ABC):
@@ -42,9 +44,9 @@ class ExecutorCommand(Command):
         msg = b'\n'.join((result.stdout or b'', result.stderr or b'')).decode()
 
         if result.returncode != 0:
-            return CommandResult.Error(msg)
+            return CommandResult.Error(msg, self)
         else:
-            return CommandResult.Ok(msg)
+            return CommandResult.Ok(msg, self)
 
     def __str__(self) -> str:
         return self.command
