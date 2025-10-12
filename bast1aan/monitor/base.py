@@ -2,7 +2,7 @@ from __future__ import annotations
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Literal, Tuple, Iterator
+from typing import Tuple, Iterator
 
 
 @dataclass
@@ -51,6 +51,7 @@ class ExecutorCommand(Command):
     def __str__(self) -> str:
         return self.command
 
+
 class CommandSet:
     commands: Tuple[Command, ...]
     def __init__(self, *commands: Command):
@@ -59,19 +60,3 @@ class CommandSet:
         for command in self.commands:
             yield command()
 
-IPV4: Literal[4] = 4
-IPV6: Literal[6] = 6
-
-@dataclass
-class PingCommand(ExecutorCommand):
-    target: str
-    count: int = 1
-    only: Literal[0, 4, 6] = 0
-    @property
-    def command(self) -> str:
-        args = ['-c', str(self.count)]
-        if self.only == IPV4:
-            args.append('-4')
-        if self.only == IPV6:
-            args.append('-6')
-        return 'ping %s %s' % (' '.join(args), self.target)

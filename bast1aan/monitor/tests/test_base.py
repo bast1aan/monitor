@@ -1,4 +1,4 @@
-from bast1aan.monitor.base import PingCommand, IPV4, IPV6, CommandSet
+from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet
 
 
 def test_ping_success():
