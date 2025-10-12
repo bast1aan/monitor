@@ -1,3 +1,6 @@
 FROM debian:bullseye
 
-RUN apt update && apt -y install python3
+RUN apt update && apt -y install python3 python3-setuptools python3-pytest iputils-ping
+
+RUN ln -s pytest-3 /usr/bin/pytest
+
