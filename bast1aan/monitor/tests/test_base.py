@@ -15,7 +15,7 @@ def test_ping_failure():
     assert bool(result) is False
     msg = str(result)
     assert 'fliepsflops: Name or service not known' in msg
-
+    assert str(ping_command) == 'ping -c 1 fliepsflops'
 
 def test_ping_ipv4_success():
     ping_command = PingCommand('localhost', only=IPV4)

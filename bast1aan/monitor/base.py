@@ -31,6 +31,9 @@ class CommandResult:
 class Command(ABC):
     @abstractmethod
     def __call__(self) -> CommandResult: ...
+    @abstractmethod
+    def __str__(self) -> str: ...
+
 
 class ExecutorCommand(Command):
     command: str
@@ -42,6 +45,9 @@ class ExecutorCommand(Command):
             return CommandResult.Error(msg)
         else:
             return CommandResult.Ok(msg)
+
+    def __str__(self) -> str:
+        return self.command
 
 IPV4: Literal[4] = 4
 IPV6: Literal[6] = 6
