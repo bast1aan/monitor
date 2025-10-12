@@ -1,6 +1,7 @@
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass
@@ -33,7 +34,7 @@ class Command(ABC):
 
 class ExecutorCommand(Command):
     command: str
-    def __call__(self):
+    def __call__(self) -> CommandResult:
         result = subprocess.run(self.command, shell=True, capture_output=True)
         msg = b'\n'.join((result.stdout or b'', result.stderr or b'')).decode()
 
@@ -42,10 +43,19 @@ class ExecutorCommand(Command):
         else:
             return CommandResult.Ok(msg)
 
+IPV4: Literal[4] = 4
+IPV6: Literal[6] = 6
+
 @dataclass
 class PingCommand(ExecutorCommand):
     target: str
     count: int = 1
+    only: Literal[0, 4, 6] = 0
     @property
     def command(self) -> str:
-        return 'ping -c %s %s' % (self.count, self.target)
+        args = ['-c', str(self.count)]
+        if self.only == IPV4:
+            args.append('-4')
+        if self.only == IPV6:
+            args.append('-6')
+        return 'ping %s %s' % (' '.join(args), self.target)
