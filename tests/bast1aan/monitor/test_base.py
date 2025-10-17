@@ -72,3 +72,16 @@ def test_commandset_success() -> None:
     result_set = command_set()
 
     assert bool(result_set) is True
+
+def test_nested_commandset() -> None:
+    command_set = CommandSet(
+        CommandSet(
+            PingCommand('localhost', only=IPV4),
+            PingCommand('localhost', only=IPV6),
+        ),
+        PingCommand('127.0.0.1', only=IPV4),
+    )
+
+    result_set = command_set()
+
+    assert bool(result_set) is True

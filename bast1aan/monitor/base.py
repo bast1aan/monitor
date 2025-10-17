@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Iterator, Iterable, ClassVar
+from typing import Tuple, Iterator, Iterable, ClassVar, overload, Generic, TypeVar
 
 
 class CommandResult(ABC):
@@ -15,6 +14,9 @@ class CommandResult(ABC):
     def __bool__(self) -> bool: ...
     @property
     def __str__(self) -> str: ...
+
+
+ExtendsCommandResult = TypeVar('ExtendsCommandResult', bound=CommandResult)
 
 
 @dataclass
@@ -49,13 +51,13 @@ class Command(ABC):
     def __str__(self) -> str: ...
 
 
-class AsyncCommand(Command):
+class AsyncCommand(Generic[ExtendsCommandResult], Command):
     _in_call: ClassVar[bool] = False
 
     @abstractmethod
-    async def run(self) -> CommandResult: ...
+    async def run(self) -> ExtendsCommandResult: ...
 
-    def __call__(self) -> CommandResult:
+    def __call__(self) -> ExtendsCommandResult:
         if self._in_call:
             raise RuntimeError('AsyncCommand may not be called recursively in a synchronous manner')
         try:
@@ -113,11 +115,11 @@ class CommandSetResult(CommandResult, Iterable[CommandResult]):
         return '\n'.join((str(result) for result in iter(self)))
 
 
-class CommandSet(Command):
+class CommandSet(AsyncCommand[CommandSetResult]):
     commands: Tuple[Command, ...]
     def __init__(self, *commands: Command):
         self.commands = commands
-    def __call__(self) -> CommandSetResult:
+    async def run(self) -> CommandSetResult:
         return CommandSetResult(command=self)
     def __str__(self) -> str:
         return '\n'.join((str(command) for command in self.commands))

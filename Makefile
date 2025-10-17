@@ -9,5 +9,5 @@ mypy: build
 	docker compose run monitor /bin/sh -c 'cd /srv; mypy .'
 
 build:
-	docker compose down
+	docker compose down --remove-orphans
 	docker compose build monitor
