@@ -1,8 +1,10 @@
 from __future__ import annotations
+
+import asyncio
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Iterator, Iterable
+from typing import Tuple, Iterator, Iterable, ClassVar
 
 
 class CommandResult(ABC):
@@ -47,16 +49,39 @@ class Command(ABC):
     def __str__(self) -> str: ...
 
 
-class ExecutorCommand(Command):
+class AsyncCommand(Command):
+    _in_call: ClassVar[bool] = False
+
+    @abstractmethod
+    async def run(self) -> CommandResult: ...
+
+    def __call__(self) -> CommandResult:
+        if self._in_call:
+            raise RuntimeError('AsyncCommand may not be called recursively in a synchronous manner')
+        try:
+            AsyncCommand._in_call = True
+            return asyncio.run(self.run())
+        finally:
+            AsyncCommand._in_call = False
+
+
+class ExecutorCommand(AsyncCommand):
     @property
     @abstractmethod
     def command(self) -> str: ...
 
-    def __call__(self) -> CommandResult:
-        result = subprocess.run(self.command, shell=True, capture_output=True)
-        msg = b'\n'.join((result.stdout or b'', result.stderr or b'')).decode()
+    async def run(self) -> CommandResult:
+        process = await asyncio.subprocess.create_subprocess_shell(
+            self.command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
 
-        if result.returncode != 0:
+        stdout, stderr = await process.communicate()
+
+        msg = b'\n'.join((stdout, stderr)).decode()
+
+        if process.returncode != 0:
             return _CommandResult.Error(msg, self)
         else:
             return _CommandResult.Ok(msg, self)
