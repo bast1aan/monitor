@@ -38,7 +38,10 @@ class Command(ABC):
 
 
 class ExecutorCommand(Command):
-    command: str
+    @property
+    @abstractmethod
+    def command(self) -> str: ...
+
     def __call__(self) -> CommandResult:
         result = subprocess.run(self.command, shell=True, capture_output=True)
         msg = b'\n'.join((result.stdout or b'', result.stderr or b'')).decode()

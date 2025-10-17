@@ -1,7 +1,7 @@
 from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet
 
 
-def test_ping_success():
+def test_ping_success() -> None:
     ping_command = PingCommand('localhost')
     result = ping_command()
     assert bool(result) is True
@@ -9,7 +9,7 @@ def test_ping_success():
     assert '64 bytes from localhost (::1): icmp_seq=1' in msg
     assert '1 packets transmitted, 1 received, 0% packet loss' in msg
 
-def test_ping_failure():
+def test_ping_failure() -> None:
     ping_command = PingCommand('fliepsflops')
     result = ping_command()
     assert bool(result) is False
@@ -17,7 +17,7 @@ def test_ping_failure():
     assert 'fliepsflops: Name or service not known' in msg
     assert str(result.command) == 'ping -c 1 fliepsflops'
 
-def test_ping_ipv4_success():
+def test_ping_ipv4_success() -> None:
     ping_command = PingCommand('localhost', only=IPV4)
     result = ping_command()
     assert bool(result) is True
@@ -25,7 +25,7 @@ def test_ping_ipv4_success():
     assert '64 bytes from localhost (127.0.0.1): icmp_seq=1' in msg
     assert '1 packets transmitted, 1 received, 0% packet loss' in msg
 
-def test_ping_ipv6_success():
+def test_ping_ipv6_success() -> None:
     ping_command = PingCommand('localhost', only=IPV6)
     result = ping_command()
     assert bool(result) is True
@@ -33,7 +33,7 @@ def test_ping_ipv6_success():
     assert '64 bytes from localhost (::1): icmp_seq=1' in msg
     assert '1 packets transmitted, 1 received, 0% packet loss' in msg
 
-def test_commandset():
+def test_commandset() -> None:
     command_set = CommandSet(
         PingCommand('localhost', only=IPV4),
         PingCommand('localhost', only=IPV6),
