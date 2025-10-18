@@ -1,5 +1,5 @@
 import asyncio
-from typing import TypeVar, AsyncIterator, Iterator, Awaitable
+from typing import TypeVar, AsyncIterator, Iterator, Awaitable, Iterable
 
 T = TypeVar('T')
 
@@ -11,6 +11,10 @@ def sync_iterator(async_iter: AsyncIterator[T]) -> Iterator[T]:
             yield run_async(async_iter.__anext__())
     except StopAsyncIteration:
         pass
+
+async def async_iterator(iter: Iterable[T]) -> AsyncIterator[T]:
+    for item in iter:
+        yield item
 
 def run_async(coro: Awaitable[T]) -> T:
     global _loop

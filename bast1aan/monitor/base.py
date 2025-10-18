@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Iterator, Iterable, ClassVar, overload, Generic, TypeVar
+from itertools import chain
+from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator
+
+from bast1aan.monitor._util import async_iterator, sync_iterator, run_async
 
 
 class CommandResult(ABC):
@@ -62,7 +65,7 @@ class AsyncCommand(Generic[ExtendsCommandResult], Command):
             raise RuntimeError('AsyncCommand may not be called recursively in a synchronous manner')
         try:
             AsyncCommand._in_call = True
-            return asyncio.run(self.run())
+            return run_async(self.run())
         finally:
             AsyncCommand._in_call = False
 
@@ -93,20 +96,33 @@ class ExecutorCommand(AsyncCommand):
 
 
 @dataclass
-class CommandSetResult(CommandResult, Iterable[CommandResult]):
+class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[CommandResult]):
     command: CommandSet
     _results: tuple[CommandResult, ...] = ()
 
-    def _walk(self) -> Iterator[CommandResult]:
+    async def _walk(self) -> AsyncIterator[CommandResult]:
         results = []
-        for command in self.command.commands:
-            result = command()
+
+        futures = [command.run() for command in self.command.commands if isinstance(command, AsyncCommand)]
+
+        for next_result in asyncio.as_completed(futures):
+            result = await next_result
             results.append(result)
             yield result
+
+        for command in self.command.commands:
+            if not isinstance(command, AsyncCommand):
+                result = command()
+                results.append(result)
+                yield result
+
         self._results = tuple(results)
 
+    def __aiter__(self) -> AsyncIterator[CommandResult]:
+        return async_iterator(self._results) if self._results else self._walk()
+
     def __iter__(self) -> Iterator[CommandResult]:
-        return iter(self._results) if self._results else self._walk()
+        return iter(self._results) if self._results else sync_iterator(self.__aiter__())
 
     def __bool__(self) -> bool:
         return all(result for result in iter(self))

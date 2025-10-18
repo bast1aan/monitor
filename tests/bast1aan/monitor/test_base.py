@@ -34,31 +34,31 @@ def test_ping_ipv6_success() -> None:
     assert '1 packets transmitted, 1 received, 0% packet loss' in msg
 
 def test_commandset() -> None:
-    command_set = CommandSet(
-        PingCommand('localhost', only=IPV4),
-        PingCommand('localhost', only=IPV6),
-        PingCommand('flupflops'),
-        PingCommand('127.0.0.1', only=IPV6),
-        PingCommand('127.0.0.1', only=IPV4),
-    )
+    command1 = PingCommand('localhost', only=IPV4)
+    command2 = PingCommand('localhost', only=IPV6)
+    command3 = PingCommand('flupflops')
+    command4 = PingCommand('127.0.0.1', only=IPV6)
+    command5 = PingCommand('127.0.0.1', only=IPV4)
+
+    command_set = CommandSet(command1, command2, command3, command4, command5)
     result_set = command_set()
-    result_list = list(result_set)
-    assert tuple(bool(result) for result in result_list) == (True, True, False, False, True)
+    result_map = {result.command: result for result in result_set}
+    assert {k: bool(v) for k, v in result_map.items()} == {command1: True, command2: True, command3: False, command4: False, command5: True}
 
-    assert '64 bytes from localhost (127.0.0.1): icmp_seq=1' in str(result_list[0])
-    assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_list[0])
+    assert '64 bytes from localhost (127.0.0.1): icmp_seq=1' in str(result_map[command1])
+    assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command1])
 
-    assert '64 bytes from localhost (::1): icmp_seq=1' in str(result_list[1])
-    assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_list[1])
+    assert '64 bytes from localhost (::1): icmp_seq=1' in str(result_map[command2])
+    assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command2])
 
-    assert 'flupflops: Name or service not known' in str(result_list[2])
-    assert 'ping -c 1 flupflops' == str(result_list[2].command)
+    assert 'flupflops: Name or service not known' in str(result_map[command3])
+    assert 'ping -c 1 flupflops' == str(result_map[command3].command)
 
-    assert '127.0.0.1: Address family for hostname not supported' in str(result_list[3])
-    assert 'ping -c 1 -6 127.0.0.1' == str(result_list[3].command)
+    assert '127.0.0.1: Address family for hostname not supported' in str(result_map[command4])
+    assert 'ping -c 1 -6 127.0.0.1' == str(result_map[command4].command)
 
-    assert '64 bytes from 127.0.0.1: icmp_seq=1' in str(result_list[4])
-    assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_list[4])
+    assert '64 bytes from 127.0.0.1: icmp_seq=1' in str(result_map[command5])
+    assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command5])
 
     assert bool(result_set) is False
 

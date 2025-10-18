@@ -6,7 +6,7 @@ from bast1aan.monitor.base import ExecutorCommand
 IPV4: Literal[4] = 4
 IPV6: Literal[6] = 6
 
-@dataclass
+@dataclass(frozen=True)
 class PingCommand(ExecutorCommand):
     target: str
     count: int = 1
