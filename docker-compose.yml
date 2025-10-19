@@ -3,5 +3,13 @@ services:
     image: bast1aan-monitor
     build:
       dockerfile: Dockerfile
+      target: runtime
+    volumes:
+       - ./:/srv
+  monitor-dev:
+    image: bast1aan-monitor-dev
+    build:
+      dockerfile: Dockerfile
+      target: dev
     volumes:
        - ./:/srv

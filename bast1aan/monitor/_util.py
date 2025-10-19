@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from typing import TypeVar, AsyncIterator, Iterator, Awaitable, Iterable
-from typing_extensions import dataclass_transform
+from ._typing_extensions import dataclass_transform
 
 T = TypeVar('T')
 
