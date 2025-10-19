@@ -1,7 +1,14 @@
 import asyncio
 from dataclasses import dataclass
-from typing import TypeVar, AsyncIterator, Iterator, Awaitable, Iterable
-from typing_extensions import dataclass_transform
+from typing import TypeVar, AsyncIterator, Iterator, Awaitable, Iterable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing_extensions import dataclass_transform
+else:
+    def dataclass_transform(*args, **kwargs):
+        def wrapper(f):
+            return f
+        return wrapper
 
 T = TypeVar('T')
 
