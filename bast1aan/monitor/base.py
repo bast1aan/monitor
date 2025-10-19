@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from itertools import chain
 from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator
 
 from bast1aan.monitor._util import async_iterator, sync_iterator, run_async
@@ -11,12 +10,13 @@ from bast1aan.monitor._util import async_iterator, sync_iterator, run_async
 
 class CommandResult(ABC):
     command: Command
-    @property
-    def error(self) -> bool: ...
-    @property
+    @abstractmethod
     def __bool__(self) -> bool: ...
-    @property
+    @abstractmethod
     def __str__(self) -> str: ...
+    @property
+    def error(self) -> bool:
+        return not bool(self)
 
 
 ExtendsCommandResult = TypeVar('ExtendsCommandResult', bound=CommandResult)
@@ -27,10 +27,6 @@ class _CommandResult(CommandResult):
     ok: bool
     msg: str
     command: Command
-
-    @property
-    def error(self) -> bool:
-        return not self.ok
 
     def __bool__(self) -> bool:
         return self.ok
