@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator
+from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator, Hashable
 
 from bast1aan.monitor._util import async_iterator, sync_iterator, run_async
 
@@ -43,14 +43,13 @@ class _CommandResult(CommandResult):
         return cls(False, msg, command)
 
 
-class Command(ABC):
+class Command(Hashable, ABC):
     @abstractmethod
     def __call__(self) -> CommandResult: ...
     @abstractmethod
     def __str__(self) -> str: ...
 
-
-class AsyncCommand(Generic[ExtendsCommandResult], Command):
+class AsyncCommand(Command, Generic[ExtendsCommandResult]):
     _in_call: ClassVar[bool] = False
 
     @abstractmethod
