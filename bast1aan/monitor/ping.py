@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from bast1aan.monitor._util import frozen_dataclass
 from bast1aan.monitor.base import ExecutorCommand
 
 IPV4: Literal[4] = 4
 IPV6: Literal[6] = 6
 
-@dataclass(frozen=True)
+@frozen_dataclass
 class PingCommand(ExecutorCommand):
     target: str
     count: int = 1

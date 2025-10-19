@@ -134,3 +134,5 @@ class CommandSet(AsyncCommand[CommandSetResult]):
         return CommandSetResult(command=self)
     def __str__(self) -> str:
         return '\n'.join((str(command) for command in self.commands))
+    def __hash__(self) -> int:
+        return hash(self.commands)
