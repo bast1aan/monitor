@@ -1,4 +1,4 @@
-from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet
+from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet
 
 
 def test_ping_success() -> None:
@@ -85,3 +85,71 @@ def test_nested_commandset() -> None:
     result_set = command_set()
 
     assert bool(result_set) is True
+
+def test_depending_commandset_success() -> None:
+    command_set = CommandSet(
+        DependingCommandSet(
+            dep1_command1 := PingCommand('localhost', only=IPV4),
+            if_succeeds=CommandSet(
+                dep1_success_command1 := PingCommand('localhost', only=IPV6),
+                dep1_success_command2 := PingCommand('127.0.0.1', only=IPV4),
+                dep1_success_command3 := PingCommand('127.0.0.1', only=IPV6),
+                dep1_success_command4 := PingCommand('::1', only=IPV6),
+            )
+        ),
+        DependingCommandSet(
+            dep2_command1 := PingCommand('nonexistent'),
+            if_succeeds=CommandSet(
+                dep2_success_command1 := PingCommand('127.0.0.2', only=IPV4),
+                dep2_success_command2 := PingCommand('127.0.0.2', only=IPV6),
+            )
+        ),
+    )
+
+    result_set = command_set()
+    results = [(result.command, bool(result)) for result in result_set]
+
+    assert (dep1_command1, True) in results and (dep2_command1, False) in results, \
+        "First 2 commands that have been executed should be always available"
+
+    assert (dep1_success_command1, True) in results
+    assert (dep1_success_command2, True) in results
+    assert (dep1_success_command3, False) in results
+    assert (dep1_success_command4, True) in results
+
+    assert (dep2_success_command1, True) not in results
+    assert (dep2_success_command2, False) not in results
+
+def test_depending_commandset_fail() -> None:
+    command_set = CommandSet(
+        DependingCommandSet(
+            dep1_command1 := PingCommand('localhost', only=IPV4),
+            if_fails=CommandSet(
+                dep1_success_command1 := PingCommand('localhost', only=IPV6),
+                dep1_success_command2 := PingCommand('127.0.0.1', only=IPV4),
+                dep1_success_command3 := PingCommand('127.0.0.1', only=IPV6),
+                dep1_success_command4 := PingCommand('::1', only=IPV6),
+            )
+        ),
+        DependingCommandSet(
+            dep2_command1 := PingCommand('nonexistent'),
+            if_fails=CommandSet(
+                dep2_success_command1 := PingCommand('127.0.0.2', only=IPV4),
+                dep2_success_command2 := PingCommand('127.0.0.2', only=IPV6),
+            )
+        ),
+    )
+
+    result_set = command_set()
+    results = [(result.command, bool(result)) for result in result_set]
+
+    assert (dep1_command1, True) in results and (dep2_command1, False) in results, \
+        "First 2 commands that have been executed should be always available"
+
+    assert (dep1_success_command1, True) not in results
+    assert (dep1_success_command2, True) not in results
+    assert (dep1_success_command3, False) not in results
+    assert (dep1_success_command4, True) not in results
+
+    assert (dep2_success_command1, True) in results
+    assert (dep2_success_command2, False) in results

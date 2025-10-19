@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator, Hashable
+from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator, Hashable, \
+    Optional
 
-from bast1aan.monitor._util import async_iterator, sync_iterator, run_async
+from bast1aan.monitor._util import async_iterator, sync_iterator, run_async, frozen_dataclass
 
 
 class CommandResult(ABC):
@@ -92,7 +93,7 @@ class ExecutorCommand(AsyncCommand):
 
 @dataclass
 class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[CommandResult]):
-    command: CommandSet
+    command: Command
     iterator: AsyncIterator[CommandResult]
     _results: tuple[CommandResult, ...] = ()
 
@@ -130,8 +131,40 @@ class CommandSet(AsyncCommand[CommandSetResult]):
         futures = [command.run() for command in self.commands if isinstance(command, AsyncCommand)]
 
         for next_result in asyncio.as_completed(futures):
-            yield await next_result
+            async for subresult in _walk_over_result(await next_result):
+                yield subresult
 
         for command in self.commands:
             if not isinstance(command, AsyncCommand):
                 yield command()
+
+
+@frozen_dataclass
+class DependingCommandSet(AsyncCommand[CommandSetResult]):
+    first_command: AsyncCommand
+    if_succeeds: Optional[AsyncCommand] = None
+    if_fails: Optional[AsyncCommand] = None
+
+    async def run(self) -> CommandSetResult:
+        return CommandSetResult(command=self, iterator=self._walk())
+
+    async def _walk(self) -> AsyncIterator[CommandResult]:
+        async for subresult in _walk_over_result(first_result := await self.first_command.run()):
+            yield subresult
+        if first_result and self.if_succeeds is not None:
+            async for subresult in _walk_over_result(await self.if_succeeds.run()):
+                yield subresult
+        if not first_result and self.if_fails is not None:
+            async for subresult in _walk_over_result(await self.if_fails.run()):
+                yield subresult
+
+    def __str__(self) -> str:
+        return str(self.first_command)
+
+
+async def _walk_over_result(result: CommandResult) -> AsyncIterator[CommandResult]:
+    if isinstance(result, CommandSetResult):
+        async for subresult in result:
+            yield subresult
+    else:
+        yield result
