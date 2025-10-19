@@ -93,24 +93,14 @@ class ExecutorCommand(AsyncCommand):
 @dataclass
 class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[CommandResult]):
     command: CommandSet
+    iterator: AsyncIterator[CommandResult]
     _results: tuple[CommandResult, ...] = ()
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
         results = []
-
-        futures = [command.run() for command in self.command.commands if isinstance(command, AsyncCommand)]
-
-        for next_result in asyncio.as_completed(futures):
-            result = await next_result
+        async for result in self.iterator:
             results.append(result)
             yield result
-
-        for command in self.command.commands:
-            if not isinstance(command, AsyncCommand):
-                result = command()
-                results.append(result)
-                yield result
-
         self._results = tuple(results)
 
     def __aiter__(self) -> AsyncIterator[CommandResult]:
@@ -131,8 +121,17 @@ class CommandSet(AsyncCommand[CommandSetResult]):
     def __init__(self, *commands: Command):
         self.commands = commands
     async def run(self) -> CommandSetResult:
-        return CommandSetResult(command=self)
+        return CommandSetResult(command=self, iterator=self._walk())
     def __str__(self) -> str:
         return '\n'.join((str(command) for command in self.commands))
     def __hash__(self) -> int:
         return hash(self.commands)
+    async def _walk(self) -> AsyncIterator[CommandResult]:
+        futures = [command.run() for command in self.commands if isinstance(command, AsyncCommand)]
+
+        for next_result in asyncio.as_completed(futures):
+            yield await next_result
+
+        for command in self.commands:
+            if not isinstance(command, AsyncCommand):
+                yield command()
