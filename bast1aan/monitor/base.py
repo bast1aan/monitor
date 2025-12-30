@@ -98,7 +98,7 @@ class ExecutorCommand(AsyncCommand):
 class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[CommandResult]):
     command: Command
     iterator: AsyncIterator[CommandResult]
-    succeeds_if: Callable[[Iterable], bool] = ALL_SUCCEED
+    succeeds_if: Callable[[Iterable], bool]
     _results: tuple[CommandResult, ...] = ()
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
@@ -150,9 +150,10 @@ class DependingCommandSet(AsyncCommand[CommandSetResult]):
     first_command: AsyncCommand
     if_succeeds: Optional[AsyncCommand] = None
     if_fails: Optional[AsyncCommand] = None
+    succeeds_if: Callable[[Iterable], bool] = ALL_SUCCEED
 
     async def run(self) -> CommandSetResult:
-        return CommandSetResult(command=self, iterator=self._walk())
+        return CommandSetResult(command=self, iterator=self._walk(), succeeds_if=self.succeeds_if)
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
         async for subresult in _walk_over_result(first_result := await self.first_command.run()):

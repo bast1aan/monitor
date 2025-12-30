@@ -164,3 +164,18 @@ def test_depending_commandset_fail() -> None:
 
     assert (dep2_success_command1, True) in results
     assert (dep2_success_command2, False) in results
+
+    assert bool(result_set) is False
+
+def test_depending_commandset_fail_eventually_succeeds() -> None:
+    command_set = DependingCommandSet(
+        PingCommand('nonexistent-so-will-fail'),
+        if_fails=CommandSet(
+            PingCommand('127.0.0.1', only=IPV4),
+        ),
+        succeeds_if=ANY_SUCCEEDS
+    )
+
+    result_set = command_set()
+
+    assert bool(result_set) is True
