@@ -4,9 +4,12 @@ import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator, Hashable, \
-    Optional
+    Optional, Callable
 
 from bast1aan.monitor._util import async_iterator, sync_iterator, run_async, frozen_dataclass
+
+ALL_SUCCEED = all
+ANY_SUCCEEDS = any
 
 
 class CommandResult(ABC):
@@ -95,6 +98,7 @@ class ExecutorCommand(AsyncCommand):
 class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[CommandResult]):
     command: Command
     iterator: AsyncIterator[CommandResult]
+    succeeds_if: Callable[[Iterable], bool] = ALL_SUCCEED
     _results: tuple[CommandResult, ...] = ()
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
@@ -111,7 +115,7 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
         return iter(self._results) if self._results else sync_iterator(self.__aiter__())
 
     def __bool__(self) -> bool:
-        return all(result for result in iter(self))
+        return self.succeeds_if(self)
 
     def __str__(self) -> str:
         return '\n'.join((str(result) for result in iter(self)))
@@ -119,10 +123,12 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
 
 class CommandSet(AsyncCommand[CommandSetResult]):
     commands: Tuple[Command, ...]
-    def __init__(self, *commands: Command):
+    _succeeds_if: Callable[[Iterable], bool]
+    def __init__(self, *commands: Command, succeeds_if: Callable[[Iterable], bool] = ALL_SUCCEED):
         self.commands = commands
+        self._succeeds_if = succeeds_if
     async def run(self) -> CommandSetResult:
-        return CommandSetResult(command=self, iterator=self._walk())
+        return CommandSetResult(command=self, iterator=self._walk(), succeeds_if=self._succeeds_if)
     def __str__(self) -> str:
         return '\n'.join((str(command) for command in self.commands))
     def __hash__(self) -> int:
