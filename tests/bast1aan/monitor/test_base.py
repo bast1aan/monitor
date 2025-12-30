@@ -1,4 +1,4 @@
-from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet
+from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet, ANY_SUCCEEDS
 
 
 def test_ping_success() -> None:
@@ -61,6 +61,17 @@ def test_commandset() -> None:
     assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command5])
 
     assert bool(result_set) is False
+
+def test_commandset_any_succeeds() -> None:
+    command1 = PingCommand('localhost', only=IPV4)
+    command2 = PingCommand('localhost', only=IPV6)
+    command3 = PingCommand('flupflops')
+    command4 = PingCommand('127.0.0.1', only=IPV6)
+    command5 = PingCommand('127.0.0.1', only=IPV4)
+
+    command_set = CommandSet(command1, command2, command3, command4, command5, succeeds_if=ANY_SUCCEEDS)
+    result_set = command_set()
+    assert bool(result_set) is True
 
 def test_commandset_success() -> None:
     command_set = CommandSet(
