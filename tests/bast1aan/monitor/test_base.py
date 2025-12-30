@@ -1,4 +1,4 @@
-from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet, ANY_SUCCEEDS
+from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet, ANY_SUCCEEDS, try_until_succeeds
 
 
 def test_ping_success() -> None:
@@ -179,3 +179,25 @@ def test_depending_commandset_fail_eventually_succeeds() -> None:
     result_set = command_set()
 
     assert bool(result_set) is True
+
+def test_try_until_succeeds_one_succeeds() -> None:
+    command_set = try_until_succeeds(
+        cmd1 := PingCommand('nonexistent-so-will-fail'),
+        cmd2 := PingCommand('127.0.0.1', only=IPV4),
+        cmd3 := PingCommand('127.0.0.1', only=IPV4),
+    )
+
+    result = command_set()
+
+    assert bool(result) is True
+
+def test_try_until_succeeds_all_fail() -> None:
+    command_set = try_until_succeeds(
+        cmd1 := PingCommand('nonexistent-so-will-fail'),
+        cmd2 := PingCommand('127.0.0.1', only=IPV6),
+        cmd3 := PingCommand('127.0.0.1', only=IPV6),
+    )
+
+    result = command_set()
+
+    assert bool(result) is False
