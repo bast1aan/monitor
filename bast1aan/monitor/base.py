@@ -173,10 +173,9 @@ def try_until_succeeds(*commands: AsyncCommand, count: int = 1) -> DependingComm
     commands = commands * count
     return DependingCommandSet(
         commands[0],
-        if_fails=try_until_succeeds(*commands[1:], count=count) if len(commands) > 2 else commands[1],
+        if_fails=try_until_succeeds(*commands[1:]) if len(commands) > 2 else commands[1],
         succeeds_if=ANY_SUCCEEDS
     )
-
 
 
 async def _walk_over_result(result: CommandResult) -> AsyncIterator[CommandResult]:

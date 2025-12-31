@@ -205,7 +205,7 @@ def test_try_until_succeeds_all_fail() -> None:
     assert bool(result) is False
 
 
-def test_try_until_succeeds_with_count_one_succeeds() -> None:
+def test_try_until_succeeds_with_count_3_succeeds() -> None:
     from bast1aan.monitor.base import AsyncCommand, _CommandResult
 
     class OnlySecondSucceeds(AsyncCommand):
@@ -220,19 +220,28 @@ def test_try_until_succeeds_with_count_one_succeeds() -> None:
                str(self),
                self
            )
-
         def __str__(self) -> str:
             return f"{OnlySecondSucceeds._cnt=}"
-
         def __hash__(self) -> int:
             return hash((self, OnlySecondSucceeds._cnt))
 
-    cmd1 = OnlySecondSucceeds()
-    cmd2 = OnlySecondSucceeds()
-    cmd3 = OnlySecondSucceeds()
+    cmd = OnlySecondSucceeds()
 
-    assert bool(cmd1()) is False
-    assert bool(cmd2()) is True
-    assert bool(cmd3()) is False
+    assert bool(cmd()) is False
+    assert bool(cmd()) is True
+    assert bool(cmd()) is False
 
+    assert OnlySecondSucceeds._cnt == 3, "All three have been executed"
 
+    OnlySecondSucceeds.reset()
+
+    command_set = try_until_succeeds(
+        OnlySecondSucceeds(),
+        count=3
+    )
+
+    command_result = command_set()
+
+    assert bool(command_result) is True
+
+    assert OnlySecondSucceeds._cnt == 2, "Only the first 2 have been executed, because the second succeeded"
