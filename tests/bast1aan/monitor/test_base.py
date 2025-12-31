@@ -1,7 +1,21 @@
-from typing import ClassVar
-
 from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet, ANY_SUCCEEDS, try_until_succeeds
+from bast1aan.monitor.base import AsyncCommand, _CommandResult
 
+class OnlySecondSucceeds(AsyncCommand):
+    cnt: int
+    def __init__(self):
+        self.cnt = 0
+    async def run(self) -> _CommandResult:
+        self.cnt += 1
+        return _CommandResult(
+            self.cnt == 2,
+            str(self),
+            self
+        )
+    def __str__(self) -> str:
+        return f"OnlySecondSucceeds {self.cnt=}"
+    def __hash__(self) -> int:
+        return hash((self, self.cnt))
 
 def test_ping_success() -> None:
     ping_command = PingCommand('localhost')
@@ -204,39 +218,18 @@ def test_try_until_succeeds_all_fail() -> None:
 
     assert bool(result) is False
 
-
-def test_try_until_succeeds_with_count_3_succeeds() -> None:
-    from bast1aan.monitor.base import AsyncCommand, _CommandResult
-
-    class OnlySecondSucceeds(AsyncCommand):
-        _cnt: ClassVar[int] = 0
-        @staticmethod
-        def reset() -> None:
-            OnlySecondSucceeds._cnt = 0
-        async def run(self) -> _CommandResult:
-           OnlySecondSucceeds._cnt += 1
-           return _CommandResult(
-               OnlySecondSucceeds._cnt == 2,
-               str(self),
-               self
-           )
-        def __str__(self) -> str:
-            return f"{OnlySecondSucceeds._cnt=}"
-        def __hash__(self) -> int:
-            return hash((self, OnlySecondSucceeds._cnt))
-
+def test_only_second_succeeds() -> None:
     cmd = OnlySecondSucceeds()
 
     assert bool(cmd()) is False
     assert bool(cmd()) is True
     assert bool(cmd()) is False
 
-    assert OnlySecondSucceeds._cnt == 3, "All three have been executed"
+    assert cmd.cnt == 3, "All three have been executed"
 
-    OnlySecondSucceeds.reset()
-
+def test_try_until_succeeds_with_count_3_succeeds() -> None:
     command_set = try_until_succeeds(
-        OnlySecondSucceeds(),
+        cmd := OnlySecondSucceeds(),
         count=3
     )
 
@@ -244,4 +237,20 @@ def test_try_until_succeeds_with_count_3_succeeds() -> None:
 
     assert bool(command_result) is True
 
-    assert OnlySecondSucceeds._cnt == 2, "Only the first 2 have been executed, because the second succeeded"
+    assert cmd.cnt == 2, "Only the first 2 have been executed, because the second succeeded"
+
+def test_try_until_succeeds_with_count_3_fails() -> None:
+    cmd = OnlySecondSucceeds()
+    assert bool(cmd()) is False, "1st"
+    assert bool(cmd()) is True, "2nd"
+    command_set = try_until_succeeds(
+        cmd,
+        count=3
+    )
+
+    command_result = command_set()
+
+    assert bool(command_result) is False, "After one succeed, cmd can only fail"
+
+    assert cmd.cnt == 5, "All 5 times the command should have been executed"
+
