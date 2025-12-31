@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import TypeVar, AsyncIterator, Iterator, Awaitable, Iterable
+from typing import TypeVar, AsyncIterator, Iterator, Awaitable, Iterable, Callable
 from ._typing_extensions import dataclass_transform
 
 T = TypeVar('T')
@@ -25,10 +25,12 @@ def run_async(coro: Awaitable[T]) -> T:
     return _loop.run_until_complete(coro)
 
 @dataclass_transform(frozen_default=True)
-def frozen_dataclass(cls: type[T]) -> type[T]:
-    """ Return dataclass with implemented __hash__ method to satisfy abstract supertypes """
-    cls_new = dataclass(frozen=True)(cls)
-    cls_new.__abstractmethods__ -= {'__hash__'}  # type: ignore
-    if not cls_new.__abstractmethods__:  # type: ignore
-        cls_new.__hash__.__isabstractmethod__ = False  # type: ignore
-    return cls_new
+def frozen_dataclass(*, eq: bool = False) -> Callable[[type[T]], type[T]]:
+    def _frozen_dataclass(cls: type[T]) -> type[T]:
+        """ Return dataclass with implemented __hash__ method to satisfy abstract supertypes """
+        cls_new = dataclass(frozen=True, eq=eq)(cls)
+        cls_new.__abstractmethods__ -= {'__hash__'}  # type: ignore
+        if not cls_new.__abstractmethods__:  # type: ignore
+            cls_new.__hash__.__isabstractmethod__ = False  # type: ignore
+        return cls_new
+    return _frozen_dataclass

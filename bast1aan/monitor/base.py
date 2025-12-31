@@ -145,7 +145,7 @@ class CommandSet(AsyncCommand[CommandSetResult]):
                 yield command()
 
 
-@frozen_dataclass
+@frozen_dataclass()
 class DependingCommandSet(AsyncCommand[CommandSetResult]):
     first_command: AsyncCommand
     if_succeeds: Optional[AsyncCommand] = None

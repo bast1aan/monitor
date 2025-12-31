@@ -10,10 +10,10 @@ from bast1aan.monitor.base import ExecutorCommand, CommandResult
 
 IPV4: Literal[4] = 4
 IPV6: Literal[6] = 6
-_previous_runs: dict[int, float] = defaultdict(float)
+_previous_runs: dict[PingCommand, float] = defaultdict(float)
 
 
-@frozen_dataclass
+@frozen_dataclass(eq=True)
 class PingCommand(ExecutorCommand):
     target: str
     count: int = 1
@@ -33,8 +33,8 @@ class PingCommand(ExecutorCommand):
         return await super().run()
 
     async def _wait_if_necessary(self) -> None:
-        wait = (_previous_runs[hash(self)] + self.interval) - time.time()
+        wait = (_previous_runs[self] + self.interval) - time.time()
         if wait > 0.0:
             await asyncio.sleep(wait)
-        _previous_runs[hash(self)] = time.time()
+        _previous_runs[self] = time.time()
 
