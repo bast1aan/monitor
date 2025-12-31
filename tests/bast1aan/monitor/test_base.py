@@ -1,5 +1,21 @@
-from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet
+from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet, ANY_SUCCEEDS, try_until_succeeds
+from bast1aan.monitor.base import AsyncCommand, _CommandResult
 
+class OnlySecondSucceeds(AsyncCommand):
+    cnt: int
+    def __init__(self):
+        self.cnt = 0
+    async def run(self) -> _CommandResult:
+        self.cnt += 1
+        return _CommandResult(
+            self.cnt == 2,
+            str(self),
+            self
+        )
+    def __str__(self) -> str:
+        return f"OnlySecondSucceeds {self.cnt=}"
+    def __hash__(self) -> int:
+        return hash((self, self.cnt))
 
 def test_ping_success() -> None:
     ping_command = PingCommand('localhost')
@@ -61,6 +77,17 @@ def test_commandset() -> None:
     assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command5])
 
     assert bool(result_set) is False
+
+def test_commandset_any_succeeds() -> None:
+    command1 = PingCommand('localhost', only=IPV4)
+    command2 = PingCommand('localhost', only=IPV6)
+    command3 = PingCommand('flupflops')
+    command4 = PingCommand('127.0.0.1', only=IPV6)
+    command5 = PingCommand('127.0.0.1', only=IPV4)
+
+    command_set = CommandSet(command1, command2, command3, command4, command5, succeeds_if=ANY_SUCCEEDS)
+    result_set = command_set()
+    assert bool(result_set) is True
 
 def test_commandset_success() -> None:
     command_set = CommandSet(
@@ -153,3 +180,77 @@ def test_depending_commandset_fail() -> None:
 
     assert (dep2_success_command1, True) in results
     assert (dep2_success_command2, False) in results
+
+    assert bool(result_set) is False
+
+def test_depending_commandset_fail_eventually_succeeds() -> None:
+    command_set = DependingCommandSet(
+        PingCommand('nonexistent-so-will-fail'),
+        if_fails=CommandSet(
+            PingCommand('127.0.0.1', only=IPV4),
+        ),
+        succeeds_if=ANY_SUCCEEDS
+    )
+
+    result_set = command_set()
+
+    assert bool(result_set) is True
+
+def test_try_until_succeeds_one_succeeds() -> None:
+    command_set = try_until_succeeds(
+        cmd1 := PingCommand('nonexistent-so-will-fail'),
+        cmd2 := PingCommand('127.0.0.1', only=IPV4),
+        cmd3 := PingCommand('127.0.0.1', only=IPV4),
+    )
+
+    result = command_set()
+
+    assert bool(result) is True
+
+def test_try_until_succeeds_all_fail() -> None:
+    command_set = try_until_succeeds(
+        cmd1 := PingCommand('nonexistent-so-will-fail'),
+        cmd2 := PingCommand('127.0.0.1', only=IPV6),
+        cmd3 := PingCommand('127.0.0.1', only=IPV6),
+    )
+
+    result = command_set()
+
+    assert bool(result) is False
+
+def test_only_second_succeeds() -> None:
+    cmd = OnlySecondSucceeds()
+
+    assert bool(cmd()) is False
+    assert bool(cmd()) is True
+    assert bool(cmd()) is False
+
+    assert cmd.cnt == 3, "All three have been executed"
+
+def test_try_until_succeeds_with_count_3_succeeds() -> None:
+    command_set = try_until_succeeds(
+        cmd := OnlySecondSucceeds(),
+        count=3
+    )
+
+    command_result = command_set()
+
+    assert bool(command_result) is True
+
+    assert cmd.cnt == 2, "Only the first 2 have been executed, because the second succeeded"
+
+def test_try_until_succeeds_with_count_3_fails() -> None:
+    cmd = OnlySecondSucceeds()
+    assert bool(cmd()) is False, "1st"
+    assert bool(cmd()) is True, "2nd"
+    command_set = try_until_succeeds(
+        cmd,
+        count=3
+    )
+
+    command_result = command_set()
+
+    assert bool(command_result) is False, "After one succeed, cmd can only fail"
+
+    assert cmd.cnt == 5, "All 5 times the command should have been executed"
+

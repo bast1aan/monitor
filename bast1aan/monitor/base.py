@@ -4,9 +4,12 @@ import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Iterator, Iterable, ClassVar, Generic, TypeVar, AsyncIterable, AsyncIterator, Hashable, \
-    Optional
+    Optional, Callable
 
 from bast1aan.monitor._util import async_iterator, sync_iterator, run_async, frozen_dataclass
+
+ALL_SUCCEED = all
+ANY_SUCCEEDS = any
 
 
 class CommandResult(ABC):
@@ -95,6 +98,7 @@ class ExecutorCommand(AsyncCommand):
 class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[CommandResult]):
     command: Command
     iterator: AsyncIterator[CommandResult]
+    succeeds_if: Callable[[Iterable], bool]
     _results: tuple[CommandResult, ...] = ()
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
@@ -111,7 +115,7 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
         return iter(self._results) if self._results else sync_iterator(self.__aiter__())
 
     def __bool__(self) -> bool:
-        return all(result for result in iter(self))
+        return self.succeeds_if(self)
 
     def __str__(self) -> str:
         return '\n'.join((str(result) for result in iter(self)))
@@ -119,10 +123,12 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
 
 class CommandSet(AsyncCommand[CommandSetResult]):
     commands: Tuple[Command, ...]
-    def __init__(self, *commands: Command):
+    _succeeds_if: Callable[[Iterable], bool]
+    def __init__(self, *commands: Command, succeeds_if: Callable[[Iterable], bool] = ALL_SUCCEED):
         self.commands = commands
+        self._succeeds_if = succeeds_if
     async def run(self) -> CommandSetResult:
-        return CommandSetResult(command=self, iterator=self._walk())
+        return CommandSetResult(command=self, iterator=self._walk(), succeeds_if=self._succeeds_if)
     def __str__(self) -> str:
         return '\n'.join((str(command) for command in self.commands))
     def __hash__(self) -> int:
@@ -144,9 +150,10 @@ class DependingCommandSet(AsyncCommand[CommandSetResult]):
     first_command: AsyncCommand
     if_succeeds: Optional[AsyncCommand] = None
     if_fails: Optional[AsyncCommand] = None
+    succeeds_if: Callable[[Iterable], bool] = ALL_SUCCEED
 
     async def run(self) -> CommandSetResult:
-        return CommandSetResult(command=self, iterator=self._walk())
+        return CommandSetResult(command=self, iterator=self._walk(), succeeds_if=self.succeeds_if)
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
         async for subresult in _walk_over_result(first_result := await self.first_command.run()):
@@ -160,6 +167,15 @@ class DependingCommandSet(AsyncCommand[CommandSetResult]):
 
     def __str__(self) -> str:
         return str(self.first_command)
+
+
+def try_until_succeeds(*commands: AsyncCommand, count: int = 1) -> DependingCommandSet:
+    commands = commands * count
+    return DependingCommandSet(
+        commands[0],
+        if_fails=try_until_succeeds(*commands[1:]) if len(commands) > 2 else commands[1],
+        succeeds_if=ANY_SUCCEEDS
+    )
 
 
 async def _walk_over_result(result: CommandResult) -> AsyncIterator[CommandResult]:
