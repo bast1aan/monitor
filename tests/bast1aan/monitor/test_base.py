@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from bast1aan.monitor import PingCommand, IPV4, IPV6, CommandSet, DependingCommandSet, ANY_SUCCEEDS, try_until_succeeds
 
 
@@ -201,3 +203,36 @@ def test_try_until_succeeds_all_fail() -> None:
     result = command_set()
 
     assert bool(result) is False
+
+
+def test_try_until_succeeds_with_count_one_succeeds() -> None:
+    from bast1aan.monitor.base import AsyncCommand, _CommandResult
+
+    class OnlySecondSucceeds(AsyncCommand):
+        _cnt: ClassVar[int] = 0
+        @staticmethod
+        def reset() -> None:
+            OnlySecondSucceeds._cnt = 0
+        async def run(self) -> _CommandResult:
+           OnlySecondSucceeds._cnt += 1
+           return _CommandResult(
+               OnlySecondSucceeds._cnt == 2,
+               str(self),
+               self
+           )
+
+        def __str__(self) -> str:
+            return f"{OnlySecondSucceeds._cnt=}"
+
+        def __hash__(self) -> int:
+            return hash((self, OnlySecondSucceeds._cnt))
+
+    cmd1 = OnlySecondSucceeds()
+    cmd2 = OnlySecondSucceeds()
+    cmd3 = OnlySecondSucceeds()
+
+    assert bool(cmd1()) is False
+    assert bool(cmd2()) is True
+    assert bool(cmd3()) is False
+
+
