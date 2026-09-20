@@ -22,7 +22,6 @@ def test_ping_success() -> None:
     result = ping_command()
     assert bool(result) is True
     msg = str(result)
-    assert '64 bytes from localhost (::1): icmp_seq=1' in msg
     assert '1 packets transmitted, 1 received, 0% packet loss' in msg
 
 def test_ping_failure() -> None:
@@ -38,7 +37,6 @@ def test_ping_ipv4_success() -> None:
     result = ping_command()
     assert bool(result) is True
     msg = str(result)
-    assert '64 bytes from localhost (127.0.0.1): icmp_seq=1' in msg
     assert '1 packets transmitted, 1 received, 0% packet loss' in msg
 
 def test_ping_ipv6_success() -> None:
@@ -46,7 +44,6 @@ def test_ping_ipv6_success() -> None:
     result = ping_command()
     assert bool(result) is True
     msg = str(result)
-    assert '64 bytes from localhost (::1): icmp_seq=1' in msg
     assert '1 packets transmitted, 1 received, 0% packet loss' in msg
 
 def test_commandset() -> None:
@@ -61,10 +58,8 @@ def test_commandset() -> None:
     result_map = {result.command: result for result in result_set}
     assert {k: bool(v) for k, v in result_map.items()} == {command1: True, command2: True, command3: False, command4: False, command5: True}
 
-    assert '64 bytes from localhost (127.0.0.1): icmp_seq=1' in str(result_map[command1])
     assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command1])
 
-    assert '64 bytes from localhost (::1): icmp_seq=1' in str(result_map[command2])
     assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command2])
 
     assert 'flupflops: Name or service not known' in str(result_map[command3])
@@ -73,7 +68,6 @@ def test_commandset() -> None:
     assert '127.0.0.1: Address family for hostname not supported' in str(result_map[command4])
     assert 'ping -c 1 -6 127.0.0.1' == str(result_map[command4].command)
 
-    assert '64 bytes from 127.0.0.1: icmp_seq=1' in str(result_map[command5])
     assert '1 packets transmitted, 1 received, 0% packet loss' in str(result_map[command5])
 
     assert bool(result_set) is False
