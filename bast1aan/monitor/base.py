@@ -83,12 +83,15 @@ class ExecutorCommand(AsyncCommand):
 
         stdout, stderr = await process.communicate()
 
-        msg = b'\n'.join((stdout, stderr)).decode()
+        msg = self._format_msg(stdout, stderr)
 
         if process.returncode != 0:
             return _CommandResult.Error(msg, self)
         else:
             return _CommandResult.Ok(msg, self)
+
+    def _format_msg(self, stdout: bytes, stderr: bytes) -> str:
+        return b'\n'.join((stdout, stderr)).decode()
 
     def __str__(self) -> str:
         return self.command
