@@ -39,8 +39,10 @@ class PingCommand(ExecutorCommand):
         _previous_runs[self] = time.time()
 
     def _format_msg(self, stdout: bytes, stderr: bytes) -> str:
-        msg = super()._format_msg(stdout, stderr)
-        try:
-            return msg.split("ping statistics ---\n")[1].split("\n")[0].strip()
-        except Exception:
-            return msg
+        if not stderr:
+            try:
+                return stdout.decode().split("ping statistics ---\n")[1].split("\n")[0].strip()
+            except Exception:
+                return super()._format_msg(stdout, stderr).replace('\n', ' ')
+        else:
+            return stderr.replace(b'\n', b' ').decode()
