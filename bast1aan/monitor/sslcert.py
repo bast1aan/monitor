@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import timedelta, datetime
 from enum import Enum
 
-from typing import Literal, Iterable
+from typing import Literal, Iterable, cast
 
 from bast1aan.monitor._util import frozen_dataclass
 from bast1aan.monitor.base import ExecutorCommand, CommandResult, CommandSet
@@ -59,7 +59,7 @@ def ssl_cert_command(hostname: str, port: Port = Port.HTTPS, error: timedelta = 
         return True
 
     addrinfo = socket.getaddrinfo(hostname, port.value, proto=socket.IPPROTO_TCP)
-    ipaddresses: list[str] = [addr[4][0] for addr in addrinfo]
+    ipaddresses = cast(list[str], [addr[4][0] for addr in addrinfo])
 
     commands: list[_SSLCommand] = []
 
