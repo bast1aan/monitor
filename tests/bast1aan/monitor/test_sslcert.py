@@ -1,6 +1,24 @@
-from bast1aan.monitor.sslcert import ssl_cert_command
+from bast1aan.monitor import sslcert
 
 def test_github() -> None:
-    cmd = ssl_cert_command('github.com')
+    cmd = sslcert.ssl_cert_command('github.com')
     res = cmd()
     assert bool(res) is True
+
+def test_openssl_error_no_cert_error() -> None:
+    cmd = sslcert.ssl_cert_command('localhost')
+    res = cmd()
+    assert bool(res) is False
+    assert 'unable to load certificate' in str(res)
+
+def test_openssl_error_expired() -> None:
+    cmd = sslcert.ssl_cert_command('expired-ecc-dv.ssl.com')
+    res = cmd()
+    assert bool(res) is False
+    assert 'SSL.com' in str(res)
+
+def test_openssl_error_revoked() -> None:
+    cmd = sslcert.ssl_cert_command('revoked-ecc-dv.ssl.com')
+    res = cmd()
+    assert bool(res) is False
+    assert 'SSL.com' in str(res)

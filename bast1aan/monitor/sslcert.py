@@ -1,16 +1,12 @@
 from __future__ import annotations
-import asyncio
-import time
 import socket
-from collections import defaultdict
 from datetime import timedelta, datetime
 from enum import Enum
 
-from typing import Literal, Iterable, cast
+from typing import Iterable, cast
 
 from bast1aan.monitor._util import frozen_dataclass
 from bast1aan.monitor.base import ExecutorCommand, CommandResult, CommandSet
-
 
 class Port(Enum):
     HTTPS = 443
@@ -20,12 +16,12 @@ class Port(Enum):
 
 OPENSSL_DATETIME_FORMAT = '%b %d %H:%M:%S %Y %Z'
 
-
 @frozen_dataclass(eq=True)
 class _SSLCommand(ExecutorCommand):
     hostname: str
     ipaddress: str
     port: Port
+
     @property
     def command(self) -> str:
         ipaddress = self.ipaddress
@@ -41,9 +37,10 @@ class _SSLCommand(ExecutorCommand):
 
 
 def ssl_cert_command(hostname: str, port: Port = Port.HTTPS, error: timedelta = timedelta(days=7)) -> CommandSet:
-    def check_output(command_results: Iterable[CommandResult]) -> bool:
+    def output_contains_valid_dates(command_results: Iterable[CommandResult]) -> bool:
+        results = tuple(command_results)  # force the iterator to be completely consumed
         now = datetime.now()
-        for res in command_results:
+        for res in results:
             if not bool(res):
                 return False
             output = str(res)
@@ -61,9 +58,5 @@ def ssl_cert_command(hostname: str, port: Port = Port.HTTPS, error: timedelta = 
     addrinfo = socket.getaddrinfo(hostname, port.value, proto=socket.IPPROTO_TCP)
     ipaddresses = cast(list[str], [addr[4][0] for addr in addrinfo])
 
-    commands: list[_SSLCommand] = []
+    return CommandSet(*(_SSLCommand(hostname, ipaddress, port) for ipaddress in ipaddresses), succeeds_if=output_contains_valid_dates)
 
-    for ipaddress in ipaddresses:
-        commands.append(_SSLCommand(hostname, ipaddress, port))
-    command_set = CommandSet(*commands, succeeds_if=check_output)
-    return command_set
