@@ -38,3 +38,9 @@ class PingCommand(ExecutorCommand):
             await asyncio.sleep(wait)
         _previous_runs[self] = time.time()
 
+    def _format_msg(self, stdout: bytes, stderr: bytes) -> str:
+        msg = super()._format_msg(stdout, stderr)
+        try:
+            return msg.split("ping statistics ---\n")[1].split("\n")[0].strip()
+        except Exception:
+            return msg
