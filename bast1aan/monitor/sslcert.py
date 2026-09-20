@@ -13,6 +13,11 @@ class Port(Enum):
     IMAPS = 993
     SMTPS = 465
     FTPS = 990
+    SMTP_STARTTLS = 25
+    IMAP_STARTTLS = 143
+    @property
+    def starttls(self) -> str:
+        return {Port.SMTP_STARTTLS: 'smtp', Port.IMAP_STARTTLS: 'imap'}.get(self, '')
 
 OPENSSL_DATETIME_FORMAT = '%b %d %H:%M:%S %Y %Z'
 
@@ -24,10 +29,9 @@ class _SSLCommand(ExecutorCommand):
 
     @property
     def command(self) -> str:
-        ipaddress = self.ipaddress
-        if ':' in ipaddress:
-            ipaddress = f'[{ipaddress}]'
-        return f"echo QUIT | openssl s_client -showcerts -servername {self.hostname} -connect {ipaddress}:{self.port.value} | openssl x509 -noout -dates"
+        ipaddress = f'[{self.ipaddress}]' if ':' in self.ipaddress else self.ipaddress
+        starttls = f'-starttls {self.port.starttls}' if self.port.starttls else ''
+        return f"echo QUIT | openssl s_client -showcerts {starttls} -servername {self.hostname} -connect {ipaddress}:{self.port.value} | openssl x509 -noout -dates"
 
     def _format_msg(self, stdout: bytes, stderr: bytes) -> str:
         msg = super()._format_msg(stdout, stderr)
