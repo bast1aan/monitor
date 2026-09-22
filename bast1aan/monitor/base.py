@@ -88,7 +88,14 @@ class ExecutorCommand(AsyncCommand):
         if process.returncode != 0:
             return _CommandResult.Error(msg, self)
         else:
-            return _CommandResult.Ok(msg, self)
+            try:
+                self._validate(msg)
+                return _CommandResult.Ok(msg, self)
+            except ValidationError as e:
+                return _CommandResult.Error(e.msg, self)
+
+    def _validate(self, msg: str) -> None:
+        """ :raises: ValidationError """
 
     def _format_msg(self, stdout: bytes, stderr: bytes) -> str:
         return b'\n'.join((stdout, stderr)).decode()
@@ -189,3 +196,8 @@ def try_until_succeeds(*commands: AsyncCommand, count: int = 1) -> DependingComm
         if_fails=try_until_succeeds(*commands[1:]) if len(commands) > 2 else commands[1],
         succeeds_if=ANY_SUCCEEDS
     )
+
+
+@dataclass
+class ValidationError(Exception):
+    msg: str
