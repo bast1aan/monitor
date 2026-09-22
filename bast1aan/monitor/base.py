@@ -107,8 +107,13 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
     async def _walk(self) -> AsyncIterator[CommandResult]:
         results = []
         async for result in self.iterator:
-            results.append(result)
-            yield result
+            if isinstance(result, CommandSetResult):
+                async for subresult in result:
+                    results.append(subresult)
+                    yield subresult
+            else:
+                results.append(result)
+                yield result
         self._results = tuple(results)
 
     def __aiter__(self) -> AsyncIterator[CommandResult]:
@@ -140,8 +145,7 @@ class CommandSet(AsyncCommand[CommandSetResult]):
         futures = [command.run() for command in self.commands if isinstance(command, AsyncCommand)]
 
         for next_result in asyncio.as_completed(futures):
-            async for subresult in _walk_over_result(await next_result):
-                yield subresult
+            yield await next_result
 
         for command in self.commands:
             if not isinstance(command, AsyncCommand):
@@ -159,14 +163,13 @@ class DependingCommandSet(AsyncCommand[CommandSetResult]):
         return CommandSetResult(command=self, iterator=self._walk(), succeeds_if=self.succeeds_if)
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
-        async for subresult in _walk_over_result(first_result := await self.first_command.run()):
-            yield subresult
+        yield (first_result := await self.first_command.run())
+
         if first_result and self.if_succeeds is not None:
-            async for subresult in _walk_over_result(await self.if_succeeds.run()):
-                yield subresult
+            yield await self.if_succeeds.run()
+
         if not first_result and self.if_fails is not None:
-            async for subresult in _walk_over_result(await self.if_fails.run()):
-                yield subresult
+            yield await self.if_fails.run()
 
     def __str__(self) -> str:
         return str(self.first_command)
@@ -179,11 +182,3 @@ def try_until_succeeds(*commands: AsyncCommand, count: int = 1) -> DependingComm
         if_fails=try_until_succeeds(*commands[1:]) if len(commands) > 2 else commands[1],
         succeeds_if=ANY_SUCCEEDS
     )
-
-
-async def _walk_over_result(result: CommandResult) -> AsyncIterator[CommandResult]:
-    if isinstance(result, CommandSetResult):
-        async for subresult in result:
-            yield subresult
-    else:
-        yield result
