@@ -103,10 +103,13 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
     iterator: AsyncIterator[CommandResult]
     succeeds_if: Callable[[Iterable], bool]
     _results: tuple[CommandResult, ...] = ()
+    _first_level_results: tuple[CommandResult, ...] = ()
 
     async def _walk(self) -> AsyncIterator[CommandResult]:
-        results = []
+        results: list[CommandResult] = []
+        first_level_results: list[CommandResult] = []
         async for result in self.iterator:
+            first_level_results.append(result)
             if isinstance(result, CommandSetResult):
                 async for subresult in result:
                     results.append(subresult)
@@ -114,7 +117,9 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
             else:
                 results.append(result)
                 yield result
+
         self._results = tuple(results)
+        self._first_level_results = tuple(first_level_results)
 
     def __aiter__(self) -> AsyncIterator[CommandResult]:
         return async_iterator(self._results) if self._results else self._walk()
@@ -123,10 +128,12 @@ class CommandSetResult(CommandResult, AsyncIterable[CommandResult], Iterable[Com
         return iter(self._results) if self._results else sync_iterator(self.__aiter__())
 
     def __bool__(self) -> bool:
-        return self.succeeds_if(self)
+        if not self._first_level_results:
+            list(self) # consume the iterator to force results
+        return self.succeeds_if(self._first_level_results)
 
     def __str__(self) -> str:
-        return '\n'.join((str(result) for result in iter(self)))
+        return '\n'.join((str(result) for result in self))
 
 
 class CommandSet(AsyncCommand[CommandSetResult]):
