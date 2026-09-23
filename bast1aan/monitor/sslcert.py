@@ -3,10 +3,10 @@ import socket
 from datetime import timedelta, datetime
 from enum import Enum
 
-from typing import Iterable, cast
+from typing import cast
 
 from bast1aan.monitor._util import frozen_dataclass
-from bast1aan.monitor.base import ExecutorCommand, CommandResult, CommandSet, ValidationError
+from bast1aan.monitor.base import ExecutorCommand, CommandSet, ValidationError
 
 class Port(Enum):
     HTTPS = 443
