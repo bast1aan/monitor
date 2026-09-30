@@ -38,11 +38,11 @@ class _SSLCommand(ExecutorCommand):
         now = datetime.now()
         for line in msg.split('\n'):
             if line.startswith('notBefore='):
-                not_before = datetime.strptime(line[10:], OPENSSL_DATETIME_FORMAT)
+                not_before = _strptime(line[10:], OPENSSL_DATETIME_FORMAT)
                 if now < not_before:
                     raise ValidationError(f'Certificate for {self.hostname} on IP address {self.ipaddress} is not yet valid')
             if line.startswith('notAfter='):
-                not_after = datetime.strptime(line[9:], OPENSSL_DATETIME_FORMAT)
+                not_after = _strptime(line[9:], OPENSSL_DATETIME_FORMAT)
                 if now > not_after - self.error:
                     raise ValidationError(f'Certificate for {self.hostname} on IP address {self.ipaddress} expires on {not_after.isoformat()}')
 
@@ -59,3 +59,8 @@ def ssl_cert_command(hostname: str, port: Port = Port.HTTPS, error: timedelta = 
 
     return CommandSet(*(_SSLCommand(hostname, ipaddress, port, error) for ipaddress in ipaddresses))
 
+
+def _strptime(date_string: str, format: str) -> datetime:
+    """ See https://github.com/python/cpython/issues/71587 """
+    import _strptime  # type: ignore
+    return _strptime._strptime_datetime(datetime, date_string, format)
