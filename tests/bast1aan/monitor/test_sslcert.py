@@ -27,7 +27,7 @@ def test_openssl_error_no_cert_error() -> None:
     cmd = sslcert.ssl_cert_command('localhost')
     res = cmd()
     assert bool(res) is False
-    assert 'unable to load certificate' in str(res)
+    assert 'Unable to load certificate' in str(res)
 
 def test_openssl_error_expired() -> None:
     cmd = sslcert.ssl_cert_command('expired-ecc-dv.ssl.com')
