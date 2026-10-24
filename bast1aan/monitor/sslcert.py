@@ -1,6 +1,6 @@
 from __future__ import annotations
 import socket
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, UTC
 from enum import Enum
 
 from typing import cast
@@ -19,8 +19,6 @@ class Port(Enum):
     def starttls(self) -> str:
         return {Port.SMTP_STARTTLS: 'smtp', Port.IMAP_STARTTLS: 'imap'}.get(self, '')
 
-OPENSSL_DATETIME_FORMAT = '%b %d %H:%M:%S %Y %Z'
-
 @frozen_dataclass(eq=True)
 class _SSLCommand(ExecutorCommand):
     hostname: str
@@ -32,17 +30,17 @@ class _SSLCommand(ExecutorCommand):
     def command(self) -> str:
         ipaddress = f'[{self.ipaddress}]' if ':' in self.ipaddress else self.ipaddress
         starttls = f'-starttls {self.port.starttls}' if self.port.starttls else ''
-        return f"echo QUIT | openssl s_client -showcerts {starttls} -servername {self.hostname} -connect {ipaddress}:{self.port.value} | openssl x509 -noout -dates"
+        return f"echo QUIT | openssl s_client -showcerts {starttls} -servername {self.hostname} -connect {ipaddress}:{self.port.value} | openssl x509 -noout -dates -dateopt iso_8601"
 
     def _validate(self, msg: str) -> None:
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         for line in msg.split('\n'):
             if line.startswith('notBefore='):
-                not_before = _strptime(line[10:], OPENSSL_DATETIME_FORMAT)
+                not_before = datetime.fromisoformat(line[10:])
                 if now < not_before:
                     raise ValidationError(f'Certificate for {self.hostname} on IP address {self.ipaddress} is not yet valid')
             if line.startswith('notAfter='):
-                not_after = _strptime(line[9:], OPENSSL_DATETIME_FORMAT)
+                not_after = datetime.fromisoformat(line[9:])
                 if now > not_after - self.error:
                     raise ValidationError(f'Certificate for {self.hostname} on IP address {self.ipaddress} expires on {not_after.isoformat()}')
 
@@ -58,9 +56,3 @@ def ssl_cert_command(hostname: str, port: Port = Port.HTTPS, error: timedelta = 
     ipaddresses = cast(list[str], [addr[4][0] for addr in addrinfo])
 
     return CommandSet(*(_SSLCommand(hostname, ipaddress, port, error) for ipaddress in ipaddresses))
-
-
-def _strptime(date_string: str, format: str) -> datetime:
-    """ See https://github.com/python/cpython/issues/71587 """
-    import _strptime  # type: ignore
-    return _strptime._strptime_datetime(datetime, date_string, format)
